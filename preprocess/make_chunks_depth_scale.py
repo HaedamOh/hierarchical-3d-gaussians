@@ -22,6 +22,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     chunk_names = os.listdir(args.chunks_dir)
+    if 'sparse' in chunk_names:
+        chunk_names = ['']
     for chunk_name in chunk_names:
 
         ## Generate depth_params.json file for each chunks as each chunk now has its own colmap

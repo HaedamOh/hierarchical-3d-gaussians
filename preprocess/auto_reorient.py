@@ -8,7 +8,7 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
-
+import os, sys, shutil
 import numpy as np
 import argparse
 from read_write_model import *
@@ -16,6 +16,13 @@ import torch
 import argparse
 import os, time
 from scipy import spatial
+
+def save_array_as_pcd(numpy_arr, filename="poses.pcd"):
+    import open3d as o3d
+    import torch
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(numpy_arr)
+    o3d.io.write_point_cloud(filename, pcd)
 
 def fit_plane_least_squares(points):
     # Augment the point cloud with a column of ones
@@ -75,16 +82,22 @@ def rotate_camera(qvec, tvec, rot_matrix, upscale):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Automatically reorient colmap')
-    
     # Add command-line argument(s)
-    parser.add_argument('--input_path', type=str, help='Path to input colmap dir',  required=True)
-    parser.add_argument('--output_path', type=str, help='Path to output colmap dir',  required=True)
-    parser.add_argument('--upscale', type=float, help='Upscaling factor',  default=0)
+    parser.add_argument('--input_path', type=str, help='Path to input colmap dir',  default='/home/shared/frontier_data/fnt_802/2024-12-13-10-24-rec001/processed/output_colmap/camera_calibration/rectified/sparse')
+    parser.add_argument('--output_path', type=str, help='Path to output colmap dir',  default='/home/shared/frontier_data/fnt_802/2024-12-13-10-24-rec001/processed/output_colmap/camera_calibration/auto_reoriented/sparse/0')
+    parser.add_argument('--upscale', type=float, help='Upscaling factor',  default=1)
     parser.add_argument('--target_med_dist', default=20)
     parser.add_argument('--model_type', type=str, help='Specify which file format to use when processing colmap files (txt or bin)', choices=['bin','txt'], default='bin')
 
     args = parser.parse_args()
 
+    if os.path.exists(args.output_path):
+        confirmation = input("Are you sure you want to remove the existing COLMAP output? (yes/no): ").strip().lower()
+        if confirmation == "yes":
+            print("Removing existing COLMAP output...")
+            shutil.rmtree(args.output_path)
+        else:
+            print("Operation cancelled.")
 
     # Read colmap cameras, images and points
     start_time = time.time()
@@ -147,11 +160,12 @@ if __name__ == '__main__':
         positions.append(points3d_in[key].xyz)
     
     positions = torch.from_numpy(np.array(positions))
-    
+    save_array_as_pcd(positions, "debug_pcd/points3d.pcd")
+
     # Perform the rotation by matrix multiplication
     rotated_points = upscale * torch.matmul(positions, rotation_matrix)
 
-
+    save_array_as_pcd(rotated_points, "debug_pcd/points3d_reoriented.pcd")
 
     points3d_out = {}
     for key, rotated in zip(points3d_in, rotated_points):
@@ -165,11 +179,21 @@ if __name__ == '__main__':
             point2D_idxs=point3d_in.point2D_idxs,
         )
 
+    metric_cam_transforms = []
+
     print("Doing images")
     images_metas_out = {} 
     for key in images_metas_in: 
         image_meta_in = images_metas_in[key]
         new_pos, new_rot = rotate_camera(image_meta_in.qvec, image_meta_in.tvec, rotation_matrix.double().numpy(), upscale)
+        
+        R = qvec2rotmat(new_rot)
+        T = np.array(new_pos)
+        W2C = np.eye(4)
+        W2C[:3, :3] = R
+        W2C[:3, 3] = T
+        C2W = np.linalg.inv(W2C)
+        metric_cam_transforms.append(C2W[:3, 3]) 
         
         images_metas_out[key] = Image(
             id=image_meta_in.id,
@@ -180,7 +204,8 @@ if __name__ == '__main__':
             xys=image_meta_in.xys,
             point3D_ids=image_meta_in.point3D_ids,
         )
-
+    save_array_as_pcd(np.array(metric_cam_transforms), "debug_pcd/poses_reoriented.pcd")
+    
     if not os.path.isdir(args.output_path):
         os.makedirs(args.output_path)
     write_model(cameras, images_metas_out, points3d_out, args.output_path, f".{args.model_type}")

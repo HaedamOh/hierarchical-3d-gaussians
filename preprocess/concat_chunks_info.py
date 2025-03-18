@@ -11,11 +11,12 @@
 
 import argparse
 import os
+import numpy as np
 
 # if __name__ == 'main':
 parser = argparse.ArgumentParser()
-parser.add_argument('--base_dir', required=True, help="Chunks folder")
-parser.add_argument('--dest_dir', required=True, help="Folder to which chunks.txt file will be written")
+parser.add_argument('--base_dir', default='./example_dataset/camera_calibration/chunks', help="Chunks folder")
+parser.add_argument('--dest_dir', default='./example_dataset/camera_calibration/aligned', help="Folder to which chunks.txt file will be written")
 args = parser.parse_args()
 
 chunks = os.listdir(args.base_dir)
@@ -67,3 +68,30 @@ def write_chunks(data, output_directory):
         print(f"Error writing to {file_path}")
 
 write_chunks(chunks_data, args.dest_dir)
+
+# Also save center.txt and extent.txt files in dest_dir
+centers = np.array([chunk['center'] for chunk in chunks_data], dtype=np.float32)  # (n, 3)
+extents = np.array([chunk['extent'] for chunk in chunks_data], dtype=np.float32)  # (n, 3)
+
+min_bounds = np.min(centers - extents/2, axis=0)
+max_bounds = np.max(centers + extents/2, axis=0)
+
+overall_center = (min_bounds + max_bounds) / 2 # (3,)
+overall_extent = max_bounds - min_bounds # (3,)
+overall_center_file_path = os.path.join(args.dest_dir, "center.txt")
+overall_extent_file_path = os.path.join(args.dest_dir, "extent.txt")
+
+try:
+    with open(overall_center_file_path, 'w') as file:
+        file.write(' '.join(map(str, overall_center)))
+    print(f"Content written to {overall_center_file_path}")
+except IOError:
+    print(f"Error writing to {overall_center_file_path}")
+
+try:
+    with open(overall_extent_file_path, 'w') as file:
+        file.write(' '.join(map(str, overall_extent)))
+    print(f"Content written to {overall_extent_file_path}")
+except IOError:
+    print(f"Error writing to {overall_extent_file_path}")
+

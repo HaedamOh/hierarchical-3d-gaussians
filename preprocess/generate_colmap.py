@@ -54,8 +54,8 @@ def setup_dirs(project_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--project_dir', type=str, required=True)
-    parser.add_argument('--images_dir', default="", help="Will be set to project_dir/inputs/images if not set")
+    parser.add_argument('--project_dir', type=str, default='/home/shared/frontier_data/fnt_802/2024-08-16-hbac_quad_fnt802/processed/output_colmap')
+    parser.add_argument('--images_dir', default="/home/shared/frontier_data/fnt_802/2024-08-16-hbac_quad_fnt802/raw", help="Will be set to project_dir/inputs/images if not set")
     parser.add_argument('--masks_dir', default="", help="Will be set to project_dir/inputs/masks if exists and not set")
     args = parser.parse_args()
     
@@ -70,75 +70,117 @@ if __name__ == '__main__':
 
     print(f"Project will be built here ${args.project_dir} base images are available there ${args.images_dir}.")
 
+
+    # confirmation = input("Are you sure you want to remove the existing COLMAP output? (yes/no): ").strip().lower()
+    # if confirmation == "yes":
+    #     print("Removing existing COLMAP output...")
+    #     shutil.rmtree(f"{args.project_dir}/camera_calibration", ignore_errors=True)
+    # else:
+    #     print("Operation cancelled.")
+
     setup_dirs(args.project_dir)
+    breakpoint()
+    # ## Feature extraction, matching then mapper to generate the colmap.
+    # print("extracting features ...")
+    # colmap_feature_extractor_args = [
+    #     colmap_exe, "feature_extractor",
+    #     "--database_path", f"{args.project_dir}/camera_calibration/unrectified/database.db",
+    #     "--image_path", f"{args.images_dir}",
+    #     "--ImageReader.single_camera", "1",
+    #     "--ImageReader.default_focal_length_factor", "0.5",
+    #     "--ImageReader.camera_model", "OPENCV_FISHEYE", # fix OPENCV_FISHEYE
+    #     "--SiftExtraction.use_gpu", "1",
 
-    ## Feature extraction, matching then mapper to generate the colmap.
-    print("extracting features ...")
-    colmap_feature_extractor_args = [
-        colmap_exe, "feature_extractor",
-        "--database_path", f"{args.project_dir}/camera_calibration/unrectified/database.db",
-        "--image_path", f"{args.images_dir}",
-        "--ImageReader.single_camera", "1",
-        "--ImageReader.default_focal_length_factor", "0.5",
-        "--ImageReader.camera_model", "OPENCV",
-        ]
+    #     ]
     
-    try:
-        subprocess.run(colmap_feature_extractor_args, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing colmap feature_extractor: {e}")
-        sys.exit(1)
+    # try:
+    #     subprocess.run(colmap_feature_extractor_args, check=True)
+    # except subprocess.CalledProcessError as e:
+    #     print(f"Error executing colmap feature_extractor: {e}")
+    #     sys.exit(1)
 
-    print("making custom matches...")
-    make_colmap_custom_matcher_args = [
-        "python", f"preprocess/make_colmap_custom_matcher.py",
-        "--image_path", f"{args.images_dir}",
-        "--output_path", f"{args.project_dir}/camera_calibration/unrectified/matching.txt"
-    ]
-    try:
-        subprocess.run(make_colmap_custom_matcher_args, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing make_colmap_custom_matcher: {e}")
-        sys.exit(1)
+    # print("making custom matches...")
+    # make_colmap_custom_matcher_args = [
+    #     "python", f"preprocess/make_colmap_custom_matcher.py",
+    #     "--image_path", f"{args.images_dir}",
+    #     "--output_path", f"{args.project_dir}/camera_calibration/unrectified/matching.txt"
+    # ]
+    # try:
+    #     subprocess.run(make_colmap_custom_matcher_args, check=True)
+    # except subprocess.CalledProcessError as e:
+    #     print(f"Error executing make_colmap_custom_matcher: {e}")
+    #     sys.exit(1)
 
-    ## Feature matching
-    print("matching features...")
-    colmap_matches_importer_args = [
-        colmap_exe, "matches_importer",
-        "--database_path", f"{args.project_dir}/camera_calibration/unrectified/database.db",
-        "--match_list_path", f"{args.project_dir}/camera_calibration/unrectified/matching.txt"
-        ]
-    try:
-        subprocess.run(colmap_matches_importer_args, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing colmap matches_importer: {e}")
-        sys.exit(1)
+    # ## Feature matching
+    # print("matching features...")
+    # colmap_matches_importer_args = [
+    #     colmap_exe, "matches_importer",
+    #     "--database_path", f"{args.project_dir}/camera_calibration/unrectified/database.db",
+    #     "--match_list_path", f"{args.project_dir}/camera_calibration/unrectified/matching.txt"
+    #     ]
+    # try:
+    #     subprocess.run(colmap_matches_importer_args, check=True)
+    # except subprocess.CalledProcessError as e:
+    #     print(f"Error executing colmap matches_importer: {e}")
+    #     sys.exit(1)
 
-    ## Generate sfm pointcloud
-    print("generating sfm point cloud...")
-    colmap_hierarchical_mapper_args = [
-        colmap_exe, "hierarchical_mapper",
-        "--database_path", f"{args.project_dir}/camera_calibration/unrectified/database.db",
-        "--image_path", f"{args.images_dir}",
-        "--output_path", f"{args.project_dir}/camera_calibration/unrectified/sparse",
-        "--Mapper.ba_global_function_tolerance", "0.000001" 
-        ]
-    try:
-        subprocess.run(colmap_hierarchical_mapper_args, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing colmap hierarchical_mapper: {e}")
-        sys.exit(1)
+    # ## Generate sfm pointcloud
+    # print("generating sfm point cloud...")
+    # colmap_hierarchical_mapper_args = [
+    #     colmap_exe, "hierarchical_mapper",
+    #     "--database_path", f"{args.project_dir}/camera_calibration/unrectified/database.db",
+    #     "--image_path", f"{args.images_dir}",
+    #     "--output_path", f"{args.project_dir}/camera_calibration/unrectified/sparse",
+    #     "--Mapper.ba_global_function_tolerance", "0.000001" ,
+    #     "--Mapper.ba_refine_focal_length", "0",
+    #     "--Mapper.ba_refine_principal_point", "0",
+    #     "--Mapper.ba_refine_extra_params", "0"
+    #     ]
+    # try:
+    #     subprocess.run(colmap_hierarchical_mapper_args, check=True)
+    # except subprocess.CalledProcessError as e:
+    #     print(f"Error executing colmap hierarchical_mapper: {e}")
+    #     sys.exit(1)
 
-    ## Simplify images so that everything takes less time (reading colmap usually takes forever)
-    simplify_images_args = [
-        "python", f"preprocess/simplify_images.py",
-        "--base_dir", f"{args.project_dir}/camera_calibration/unrectified/sparse/0"
-    ]
-    try:
-        subprocess.run(simplify_images_args, check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing simplify_images: {e}")
-        sys.exit(1)
+    # ## Simplify images so that everything takes less time (reading colmap usually takes forever)
+    # simplify_images_args = [
+    #     "python", f"preprocess/simplify_images.py",
+    #     "--base_dir", f"{args.project_dir}/camera_calibration/unrectified/sparse/0"
+    # ]
+    # try:
+    #     subprocess.run(simplify_images_args, check=True)
+    # except subprocess.CalledProcessError as e:
+    #     print(f"Error executing simplify_images: {e}")
+    #     sys.exit(1)
+        
+    # confirmation = input("Are you sure you want to undistort using COLMAP (yes/no): ").strip().lower()
+    # if confirmation == "yes":
+    #     print("Undistorting using COLMAP...")
+    #     shutil.rmtree(f"{args.project_dir}/camera_calibration", ignore_errors=True)
+    # else:
+    #     print("Operation cancelled.")
+    
+    
+    ## Copy alraedy generated colmap files
+    input_path = f"{args.project_dir}/camera_calibration/unrectified/sparse"
+    sparse_dir = f"{args.project_dir}/sparse"
+
+    if os.path.exists(sparse_dir):
+        # Check if the sparse directory has contents
+        if os.listdir(sparse_dir):
+            # Remove the existing target directory (if any)
+            if os.path.exists(input_path):
+                shutil.rmtree(input_path)
+            
+            # Now, copy the contents
+            shutil.copytree(sparse_dir, input_path)
+            print(f"Copied contents from {sparse_dir} to {input_path}")
+        else:
+            print(f"Error: The source directory {sparse_dir} is empty.")
+            exit(1)
+    else:
+        print(f"Error: {sparse_dir} does not exist.")
+        exit(1)
 
     ## Undistort images
     print(f"undistorting images from {args.images_dir} to {args.project_dir}/camera_calibration/rectified images...")
@@ -148,14 +190,20 @@ if __name__ == '__main__':
         "--input_path", f"{args.project_dir}/camera_calibration/unrectified/sparse/0", 
         "--output_path", f"{args.project_dir}/camera_calibration/rectified/",
         "--output_type", "COLMAP",
-        "--max_image_size", "2048",
+        # "--max_image_size", "1920",
+        "--min_scale", "1.0",
+        "--max_scale", "1.0",
+
         ]
     try:
         subprocess.run(colmap_image_undistorter_args, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error executing image_undistorter: {e}")
         sys.exit(1)
-
+    breakpoint()
+    
+    
+    
     if not args.masks_dir == "":
         # create a copy of colmap as txt and replace jpgs with pngs to undistort masks the same way images were distorted
         if not os.path.exists(f"{args.project_dir}/camera_calibration/unrectified/sparse/0/masks"):
@@ -207,5 +255,19 @@ if __name__ == '__main__':
         print(f"Error executing auto_orient: {e}")
         sys.exit(1)
 
+    # Convert to txt 
+    colmap_converter_args = [
+        colmap_exe, "model_converter",
+        "--input_path", f"{args.project_dir}/camera_calibration/aligned/sparse/0",
+        "--output_path", f"{args.project_dir}/camera_calibration/aligned/sparse/0",
+        "--output_type", "TXT"
+    ]
+
+    try:
+        subprocess.run(colmap_converter_args, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing model_converter: {e}")
+        sys.exit(1)
+    
     end_time = time.time()
     print(f"Preprocessing done in {(end_time - start_time)/60.0} minutes.")

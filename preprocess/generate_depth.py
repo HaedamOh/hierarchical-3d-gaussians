@@ -5,9 +5,10 @@ import time
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--project_dir', type=str, required=True)
+    parser.add_argument('--project_dir', type=str, default='./example_dataset')
     parser.add_argument('--images_dir', default="", help="Will be set to project_dir/camera_calibration/rectified/images if not set")
     parser.add_argument('--chunks_dir', default="", help="Will be set to project_dir/camera_calibration/chunks if not set")
+    parser.add_argument('--aligned_dir', default="", help="Will be set to project_dir/camera_calibration/aligned if not set")
     parser.add_argument('--depth_generator', default="Depth-Anything-V2", choices=["DPT", "Depth-Anything-V2"], help="depth generator can be DPT or Depth-Anything-V2, we suggest using Depth-Anything-V2.")
     args = parser.parse_args()
     
@@ -16,6 +17,9 @@ if __name__ == '__main__':
 
     if args.chunks_dir == "":
         args.chunks_dir = os.path.join(args.project_dir, "camera_calibration/chunks")
+    
+    if args.aligned_dir == "":
+        args.aligned_dir = os.path.join(args.project_dir, "camera_calibration/aligned")
 
     print(f"generating depth maps using {args.depth_generator}.")
     start_time = time.time()
@@ -39,6 +43,9 @@ if __name__ == '__main__':
     if all(os.path.isfile(os.path.join(images_dir, cam_dir)) for cam_dir in cam_dirs):
         cam_dirs = [""]
     for cam_dir in cam_dirs:
+        if os.path.exists(os.path.join(args.project_dir, "camera_calibration/rectified", "depths", cam_dir)):
+            print(f"Depth map for {cam_dir} already exists, skipping.")
+            continue
         full_cam_path = os.path.join(images_dir, cam_dir)
         print(f"Estimating depth for {full_cam_path}")
         full_depth_path = os.path.join(args.project_dir, "camera_calibration/rectified", "depths", cam_dir)
@@ -64,12 +71,26 @@ if __name__ == '__main__':
             sys.exit(1)
 
     # generate depth_params.json for each chunks
+    print(f"generating depth_params.json for entire aligned colmap {os.listdir(args.aligned_dir)}.")
+    try:
+        subprocess.run([
+            "python", "preprocess/make_chunks_depth_scale.py", 
+            "--chunks_dir", f"{args.aligned_dir}", 
+            "--depths_dir", os.path.join(args.project_dir, "camera_calibration/rectified", "depths")
+        ], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing run_monodepth: {e}")
+        sys.exit(1)
+
+
+    # generate depth_params.json for each chunks
     print(f"generating depth_params.json for chunks {os.listdir(args.chunks_dir)}.")
     try:
         subprocess.run([
-            "python", "preprocess/make_chunks_depth_scale.py", "--chunks_dir", f"{args.chunks_dir}", "--depths_dir", f"{os.path.join(args.project_dir, "camera_calibration/rectified", "depths")}"],
-            check=True
-        )
+            "python", "preprocess/make_chunks_depth_scale.py", 
+            "--chunks_dir", f"{args.chunks_dir}", 
+            "--depths_dir", os.path.join(args.project_dir, "camera_calibration/rectified", "depths")
+        ], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error executing run_monodepth: {e}")
         sys.exit(1)

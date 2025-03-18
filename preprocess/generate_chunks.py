@@ -42,7 +42,7 @@ def setup_dirs(images, colmap, chunks, project):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--project_dir', required=True, help="images, colmap and chunks paths doesnt have to be set if you generated the colmap using generate_colmap script.")
+    parser.add_argument('--project_dir',default='/home/shared/frontier_data/fnt_802/2025-01-20_19-52-11-hbac-quad_fnt802/hierarchical-3dgs',  help="images, colmap and chunks paths doesnt have to be set if you generated the colmap using generate_colmap script.")
     parser.add_argument('--images_dir', default="")
     parser.add_argument('--global_colmap_dir', default="")
     parser.add_argument('--chunks_dir', default="")
