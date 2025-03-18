@@ -10,16 +10,17 @@
 #
 
 import os
-from scene.cameras import Camera
+from scene.cameras import Camera, MiniCam, DummyCamera
 import numpy as np
-from utils.graphics_utils import fov2focal
+from utils.graphics_utils import fov2focal, focal2fov,getWorld2View2 , getProjectionMatrix
 from PIL import Image
 import os, sys
 import cv2
+import torch
 
 WARNED = False
 
-def loadCam(args, id, cam_info, resolution_scale, is_test_dataset):
+def loadCam(args, id, cam_info, resolution_scale, is_test_dataset, is_metric_depth):
     image = Image.open(cam_info.image_path)
 
     if cam_info.mask_path != "":
@@ -38,17 +39,34 @@ def loadCam(args, id, cam_info, resolution_scale, is_test_dataset):
         alpha_mask = None
        
     if cam_info.depth_path != "":
-        try:
-            invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / float(2**16)
-        except FileNotFoundError:
-            print(f"Error: The depth file at path '{cam_info.depth_path}' was not found.")
-            raise
-        except IOError:
-            print(f"Error: Unable to open the image file '{cam_info.depth_path}'. It may be corrupted or an unsupported format.")
-            raise
-        except Exception as e:
-            print(f"An unexpected error occurred when trying to read depth at {cam_info.depth_path}: {e}")
-            raise
+        if not is_metric_depth:
+            try:
+                invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / float(2**16)
+            except FileNotFoundError:
+                print(f"Error: The depth file at path '{cam_info.depth_path}' was not found.")
+                raise
+            except IOError:
+                print(f"Error: Unable to open the image file '{cam_info.depth_path}'. It may be corrupted or an unsupported format.")
+                raise
+            except Exception as e:
+                print(f"An unexpected error occurred when trying to read depth at {cam_info.depth_path}: {e}")
+                raise
+        else:
+            try:
+                euc_depth = cv2.imread(cam_info.depth_path, -1).astype(np.int16) / 256 # 16 bit depth
+                z_depth = euclidean_to_z_depth(euc_depth, cam_info)
+                invdepthmap = np.where(z_depth > 0, 1.0 / z_depth, 0)
+                
+            except FileNotFoundError:
+                print(f"Error: The depth file at path '{cam_info.depth_path}' was not found.")
+                raise
+            except IOError:
+                print(f"Error: Unable to open the image file '{cam_info.depth_path}'. It may be corrupted or an unsupported format.")
+                raise
+            except Exception as e:  
+                print(f"An unexpected error occurred when trying to read depth at {cam_info.depth_path}: {e}")
+                raise
+                
     else:
         invdepthmap = None
 
@@ -88,6 +106,33 @@ def cameraList_from_camInfos(cam_infos, resolution_scale, args):
 
     return camera_list
 
+def euclidean_to_z_depth(euc_depth, cam_info):
+    h, w = cam_info.height, cam_info.width
+    fx = w / (2 * np.tan(np.radians(cam_info.FovX) / 2))
+    fy = h / (2 * np.tan(np.radians(cam_info.FovY) / 2))
+    cx, cy = cam_info.primx, cam_info.primy
+    u, v = np.meshgrid(np.arange(w), np.arange(h))
+    x = (u - cx) / fx
+    y = (v - cy) / fy
+    Z = np.sqrt(euc_depth**2 / (1 + x**2 + y**2))
+    return Z
+
+
+
+def loadDummyCam(args, id, cam_info, resolution_scale):
+    return DummyCamera(cam_info.T, cam_info.R, cam_info.image_name, cam_info.width, cam_info.height,
+                       cam_info.FovX, cam_info.FovY, 0.01, 100 , cam_info.primx, cam_info.primy)
+
+
+def dummy_cameraList_from_camInfos(cam_infos, resolution_scale, args):
+    camera_list = []
+
+    for id, c in enumerate(cam_infos):
+        camera_list.append(loadDummyCam(args, id, c, resolution_scale))
+
+    return camera_list
+
+
 def camera_to_JSON(id, camera : Camera):
     Rt = np.zeros((4, 4))
     Rt[:3, :3] = camera.R.transpose()
@@ -110,17 +155,51 @@ def camera_to_JSON(id, camera : Camera):
     }
     return camera_entry
 
-import torch
+def JSON_to_camera(camera_json):
+    image_name = camera_json["img_name"]    
+    position = np.array(camera_json["position"])
+    rotation = np.array(camera_json["rotation"])
+
+    # Reconstruct W2C
+    W2C = np.eye(4)
+    W2C[:3, :3] = rotation
+    W2C[:3, 3] = position
+
+    # Compute C2W by inverting W2C
+    C2W = np.linalg.inv(W2C)
+    R = C2W[:3, :3].T  # Transpose to match the original R
+    T = C2W[:3, 3]  # Extract translation
+
+    # Compute FOV values from focal lengths
+    FovX = focal2fov(camera_json["fx"], camera_json["width"])
+    FovY = focal2fov(camera_json["fy"], camera_json["height"])
+    
+    width = camera_json["width"]
+    height = camera_json["height"]
+    
+    primx = width / 2
+    primy = height / 2
+    
+    znear = 0.01
+    zfar = 100 
+    
+    # Create Camera object
+    camera = DummyCamera( T, R, image_name, width, height, FovX, FovY, znear, zfar, primx, primy)
+    return camera
+
+
+
 
 class CameraDataset(torch.utils.data.Dataset):
   'Characterizes a dataset for PyTorch'
-  def __init__(self, list_cam_infos, args, resolution_scales, is_test):
+  def __init__(self, list_cam_infos, args, resolution_scales, is_test, is_metric_depth):
         'Initialization'
         self.resolution_scales = resolution_scales
         self.list_cam_infos = list_cam_infos
         self.args = args
         self.args.data_device = 'cpu'
         self.is_test = is_test
+        self.is_metric_depth = False
 
   def __len__(self):
         'Denotes the total number of samples'
@@ -131,7 +210,7 @@ class CameraDataset(torch.utils.data.Dataset):
 
         # Select sample
         info = self.list_cam_infos[index]
-        X = loadCam(self.args, index, info, self.resolution_scales, self.is_test)
+        X = loadCam(self.args, index, info, self.resolution_scales, self.is_test, self.is_metric_depth)
 
         return X
   

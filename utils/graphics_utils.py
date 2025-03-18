@@ -81,3 +81,9 @@ def fov2focal(fov, pixels):
 
 def focal2fov(focal, pixels):
     return 2*math.atan(pixels/(2*focal))
+
+def get_transformation_matrix(position, rotation):
+    T = np.eye(4, 4)
+    T[:3, :3] = rotation
+    T[:3, 3] = position
+    return np.linalg.inv(T.T)   
