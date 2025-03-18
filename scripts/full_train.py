@@ -44,7 +44,7 @@ def setup_dirs(images, depths, masks, colmap, chunks, output, project):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--project_dir', required=True, help="Only the project dir has to be specified, other directories will be set according to the ones created using generate_colmap and generate_chunks scripts. They still can be explicitly specified.")
+    parser.add_argument('--project_dir', default='/home/shared/frontier_data/fnt_802/2025-01-20_19-52-11-hbac-quad_fnt802/raw' , help="Only the project dir has to be specified, other directories will be set according to the ones created using generate_colmap and generate_chunks scripts. They still can be explicitly specified.")
     parser.add_argument('--env_name', default="hierarchical_3d_gaussians")
     parser.add_argument('--extra_training_args', default="", help="Additional arguments that can be passed to training scripts. Not passed to slurm yet")
     parser.add_argument('--colmap_dir', default="")
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--output_dir', default="")
     parser.add_argument('--use_slurm', action="store_true", default=False)
-    parser.add_argument('--skip_if_exists', action="store_true", default=False, help="Skip training a chunk if it already has a hierarchy")
+    parser.add_argument('--skip_if_exists', action="store_true", default=True, help="Skip training a chunk if it already has a hierarchy")
     parser.add_argument('--keep_running', action="store_true", default=False, help="Keep running even if a chunk processing fails")
     args = parser.parse_args()
     print(args.extra_training_args)
@@ -152,8 +152,8 @@ if __name__ == '__main__':
     
     chunk_names = os.listdir(chunks_dir)
     for chunk_name in chunk_names:
-        source_chunk = os.path.join(chunks_dir, chunk_name)
-        trained_chunk = os.path.join(output_dir, "trained_chunks", chunk_name)
+        source_chunk = os.path.join(chunks_dir, chunk_name) # project_dir/camera_calibration/chunks/chunk_name
+        trained_chunk = os.path.join(output_dir, "trained_chunks", chunk_name) # output/trained_chunks/chunk_name
 
         if args.skip_if_exists and os.path.exists(os.path.join(trained_chunk, "hierarchy.hier_opt")):
             print(f"Skipping {chunk_name}")
