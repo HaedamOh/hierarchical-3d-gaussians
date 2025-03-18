@@ -23,7 +23,7 @@ class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0], create_from_hier=False):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0], create_from_hier=False, kargs=None):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -41,8 +41,12 @@ class Scene:
         self.train_cameras = {}
         self.test_cameras = {}
 
-        if os.path.exists(os.path.join(args.source_path, "sparse")):
+        if os.path.exists(os.path.join(args.source_path, "sparse")) and kargs.dataset_type == 'colmap':
             scene_info = sceneLoadTypeCallbacks["Colmap"](args.source_path, args.images, args.alpha_masks, args.depths, args.eval, args.train_test_exp)
+        elif kargs.dataset_type == 'silvr':
+            scene_info = sceneLoadTypeCallbacks["Silvr"](args.source_path, args.images, args.alpha_masks, args.depths, args.eval, args.train_test_exp, kargs.transforms_json, kargs.pointcloud_file)
+        elif kargs.dataset_type == 'vilens':
+            scene_info = sceneLoadTypeCallbacks["Vilens"](args.source_path, args.images, args.alpha_masks, args.depths, args.eval, args.train_test_exp)
         else:
             assert False, "Could not recognize scene type!"
 
@@ -68,10 +72,10 @@ class Scene:
 
         for resolution_scale in resolution_scales:
             print("Making Training Dataset")
-            self.train_cameras[resolution_scale] = CameraDataset(scene_info.train_cameras, args, resolution_scale, False)
+            self.train_cameras[resolution_scale] = CameraDataset(scene_info.train_cameras, args, resolution_scale, False, kargs.is_metric_depth)
 
             print("Making Test Dataset")
-            self.test_cameras[resolution_scale] = CameraDataset(scene_info.test_cameras, args, resolution_scale, True)
+            self.test_cameras[resolution_scale] = CameraDataset(scene_info.test_cameras, args, resolution_scale, True, kargs.is_metric_depth)
 
         if self.loaded_iter:
             self.gaussians.load_ply(os.path.join(self.model_path,
@@ -97,21 +101,21 @@ class Scene:
         mkdir_p(point_cloud_path)
         if self.gaussians.nodes is not None:
             self.gaussians.save_hier()
-        else:
-            with open(os.path.join(point_cloud_path, "pc_info.txt"), "w") as f:
-                f.write(str(self.gaussians.skybox_points))
-            if self.gaussians._xyz.size(0) > 8_000_000:
-                self.gaussians.save_pt(point_cloud_path)
-            else:
-                self.gaussians.save_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
 
-            exposure_dict = {
-                image_name: self.gaussians.get_exposure_from_name(image_name).detach().cpu().numpy().tolist()
-                for image_name in self.gaussians.exposure_mapping
-            }
+        with open(os.path.join(point_cloud_path, "pc_info.txt"), "w") as f:
+            f.write(str(self.gaussians.skybox_points))
+        # if self.gaussians._xyz.size(0) > 8_000_000:
+        #     self.gaussians.save_pt(point_cloud_path)
+        # else:
+            self.gaussians.save_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
 
-            with open(os.path.join(self.model_path, "exposure.json"), "w") as f:
-                json.dump(exposure_dict, f, indent=2)
+        exposure_dict = {
+            image_name: self.gaussians.get_exposure_from_name(image_name).detach().cpu().numpy().tolist()
+            for image_name in self.gaussians.exposure_mapping
+        }
+
+        with open(os.path.join(self.model_path, "exposure.json"), "w") as f:
+            json.dump(exposure_dict, f, indent=2)
 
     def getTrainCameras(self, scale=1.0):
         return self.train_cameras[scale]

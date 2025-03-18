@@ -12,8 +12,9 @@
 import torch
 from torch import nn
 import numpy as np
-from utils.graphics_utils import getWorld2View2, getProjectionMatrix
+from utils.graphics_utils import getWorld2View2, getProjectionMatrix, get_transformation_matrix
 import cv2
+import math
 
 from utils.general_utils import PILtoTorch
 
@@ -86,7 +87,12 @@ class Camera(nn.Module):
             else:
                 self.depth_reliable = True
 
-        self.zfar = 100.0
+        if invdepthmap is not None:
+            self.invdepthmap = torch.from_numpy(invdepthmap[None]).to(self.data_device)
+            self.depth_mask = torch.ones_like(self.invdepthmap > 0)
+            self.depth_reliable = True 
+        
+        self.zfar = 100.0 # 100.0
         self.znear = 0.01
 
         self.trans = trans
@@ -111,3 +117,18 @@ class MiniCam:
         self.camera_center = view_inv[3][:3]
 
 
+class DummyCamera:
+    def __init__(self, T, R, image_name, width, height, fovx, fovy, znear, zfar, primx, primy):
+        self.image_name = image_name
+        self.image_width = width
+        self.image_height = height    
+        self.FoVx = fovx
+        self.FoVy = fovy
+        self.znear = znear
+        self.zfar = zfar
+        self.world_view_transform = torch.tensor(getWorld2View2(R, T)).transpose(0, 1)
+        self.projection_matrix = getProjectionMatrix(znear=0.01, zfar=100, fovX=fovx, fovY=fovy, primx =primx , primy=primy).transpose(0,1)
+        self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
+        view_inv = torch.inverse(self.world_view_transform)
+        self.camera_center = view_inv[3][:3]
+        

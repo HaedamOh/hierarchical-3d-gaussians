@@ -218,15 +218,19 @@ class GaussianModel:
                 skybox_points = int(f.readline())
 
             self.skybox_points = skybox_points
-            with open(os.path.join(bounds_file, "center.txt")) as centerfile:
-                with open(os.path.join(bounds_file, "extent.txt")) as extentfile:
-                    centerline = centerfile.readline()
-                    extentline = extentfile.readline()
+            if os.path.exists(os.path.join(bounds_file, "center.txt")) and os.path.exists(os.path.join(bounds_file, "extent.txt")):
+                with open(os.path.join(bounds_file, "center.txt")) as centerfile:
+                    with open(os.path.join(bounds_file, "extent.txt")) as extentfile:
+                        centerline = centerfile.readline()
+                        extentline = extentfile.readline()
 
-                    c = centerline.split(' ')
-                    e = extentline.split(' ')
-                    center = torch.Tensor([float(c[0]), float(c[1]), float(c[2])]).cuda()
-                    extent = torch.Tensor([float(e[0]), float(e[1]), float(e[2])]).cuda()
+                        c = centerline.split(' ')
+                        e = extentline.split(' ')
+                        center = torch.Tensor([float(c[0]), float(c[1]), float(c[2])]).cuda()
+                        extent = torch.Tensor([float(e[0]), float(e[1]), float(e[2])]).cuda()
+            else:
+                center = torch.from_numpy(np.mean(pcd.points, axis=0)).cuda()
+                extent = torch.from_numpy(np.max(pcd.points, axis=0) - np.min(pcd.points, axis=0)).cuda()
 
             distances1 = torch.abs(scaffold_xyz.cuda() - center)
             selec = torch.logical_and(
@@ -686,4 +690,5 @@ class GaussianModel:
 
     def add_densification_stats(self, viewspace_point_tensor, update_filter):
         self.xyz_gradient_accum[update_filter] = torch.max(torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True), self.xyz_gradient_accum[update_filter])
+        # self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
         self.denom[update_filter] += 1
