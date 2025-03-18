@@ -21,16 +21,19 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
+import torchvision
 
 def direct_collate(x):
     return x
 
-def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
+def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, checkpoint, debug_from, args):
     first_iter = 0
     prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree)
-    scene = Scene(dataset, gaussians)
-    gaussians.training_setup(opt)
+    scene = Scene(dataset, gaussians, kargs=args)
+    # Try use adam 
+    our_adam = True
+    gaussians.training_setup(opt,our_adam=our_adam)
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
@@ -111,7 +114,8 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                 if depth_l1_weight(iteration) > 0 and viewpoint_cam.depth_reliable:
                     mono_invdepth = viewpoint_cam.invdepthmap.cuda()
                     depth_mask = viewpoint_cam.depth_mask.cuda()
-
+                    torchvision.utils.save_image(mono_invdepth, "debug_invdepth.png")
+                    torchvision.utils.save_image(depth_mask, "debug_depth_mask.png")
                     Ll1depth_pure = torch.abs((invDepth  - mono_invdepth) * depth_mask).mean()
                     Ll1depth = depth_l1_weight(iteration) * Ll1depth_pure 
                     loss += Ll1depth
@@ -170,11 +174,16 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                         if gaussians._opacity.grad != None:
                             relevant = (gaussians._opacity.grad.flatten() != 0).nonzero()
                             relevant = relevant.flatten().long()
-                            if(relevant.size(0) > 0):
-                                gaussians.optimizer.step(relevant)
+                            
+                            if our_adam:
+                                if(relevant.size(0) > 0):
+                                    gaussians.optimizer.step(relevant)
+                                else:
+                                    gaussians.optimizer.step(relevant)
+                                    print("No grads!")
                             else:
-                                gaussians.optimizer.step(relevant)
-                                print("No grads!")
+                                gaussians.optimizer.step()
+                            
                             gaussians.optimizer.zero_grad(set_to_none = True)
                     
                     if not args.skip_scale_big_gauss:
@@ -212,7 +221,7 @@ if __name__ == "__main__":
     op = OptimizationParams(parser)
     pp = PipelineParams(parser)
     parser.add_argument('--ip', type=str, default="127.0.0.1")
-    parser.add_argument('--port', type=int, default=6009)
+    parser.add_argument('--port', type=int, default=6007)
     parser.add_argument('--disable_viewer', action='store_true', default=False)
     parser.add_argument('--debug_from', type=int, default=-1)
     parser.add_argument('--detect_anomaly', action='store_true', default=False)
@@ -220,6 +229,10 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
+    parser.add_argument("--dataset_type", default='colmap')
+    parser.add_argument("--transforms_json", default=None)
+    parser.add_argument("--pointcloud_file", default=None)
+    parser.add_argument("--is_metric_depth", default=False)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
@@ -236,7 +249,7 @@ if __name__ == "__main__":
     if not args.disable_viewer:
         network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), op.extract(args), pp.extract(args), args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
+    training(lp.extract(args), op.extract(args), pp.extract(args), args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args=args)
 
     # All done
     print("\nTraining complete.")
