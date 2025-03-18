@@ -14,7 +14,7 @@ import os
 import torch
 from random import randint
 from utils.loss_utils import ssim
-from gaussian_renderer import render_post
+from gaussian_renderer import render
 import sys
 from scene import Scene, GaussianModel
 from tqdm import tqdm
@@ -30,7 +30,7 @@ def direct_collate(x):
     return x
 
 @torch.no_grad()
-def render_set_hierarchy(args, scene, pipe, out_dir, tau, eval):
+def render_set_ply(args, scene, pipe, out_dir, tau, eval):
     render_path = out_dir
 
     render_indices = torch.zeros(scene.gaussians._xyz.size(0)).int().cuda()
@@ -44,7 +44,6 @@ def render_set_hierarchy(args, scene, pipe, out_dir, tau, eval):
     lpipss = 0.0
 
     cameras = scene.getTestCameras() if eval else scene.getTrainCameras()
-
     for viewpoint in tqdm(cameras):
         viewpoint=viewpoint
         viewpoint.world_view_transform = viewpoint.world_view_transform.cuda()
@@ -55,60 +54,30 @@ def render_set_hierarchy(args, scene, pipe, out_dir, tau, eval):
         tanfovx = math.tan(viewpoint.FoVx * 0.5)
         threshold = (2 * (tau + 0.5)) * tanfovx / (0.5 * viewpoint.image_width)
 
-        to_render = expand_to_size(
-            scene.gaussians.nodes,
-            scene.gaussians.boxes,
-            threshold,
-            viewpoint.camera_center,
-            torch.zeros((3)),
-            render_indices,
-            parent_indices,
-            nodes_for_render_indices)
+        # Render 
+        render_pkg = render(
+            viewpoint,
+            scene.gaussians,
+            pipe,
+            torch.tensor([0.0, 0.0, 0.0], dtype=torch.float32, device="cuda"),  indices = None, use_trained_exp=args.train_test_exp)
+        image, invDepth, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["depth"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
         
-        indices = render_indices[:to_render].int().contiguous()
-        node_indices = nodes_for_render_indices[:to_render].contiguous()
-
-        get_interpolation_weights(
-            node_indices,
-            threshold,
-            scene.gaussians.nodes,
-            scene.gaussians.boxes,
-            viewpoint.camera_center.cpu(),
-            torch.zeros((3)),
-            interpolation_weights,
-            num_siblings
-        )
-
-        image = torch.clamp(render_post(
-            viewpoint, 
-            scene.gaussians, 
-            pipe, 
-            torch.tensor([0.0, 0.0, 0.0], dtype=torch.float32, device="cuda"), 
-            render_indices=indices,
-            parent_indices = parent_indices,
-            interpolation_weights = interpolation_weights,
-            num_node_kids = num_siblings, 
-            use_trained_exp=args.train_test_exp
-            )["render"], 0.0, 1.0)
-
+        image = torch.clamp(render_pkg["render"], 0.0, 1.0)
         gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-
+        gt_depth = viewpoint.invdepthmap.to("cuda")
         alpha_mask = viewpoint.alpha_mask.cuda()
 
-        if args.train_test_exp:
-            image = image[..., image.shape[-1] // 2:]
-            gt_image = gt_image[..., gt_image.shape[-1] // 2:]
-            alpha_mask = alpha_mask[..., alpha_mask.shape[-1] // 2:]
 
-        try:
-            torchvision.utils.save_image(image, os.path.join(render_path, 'rgb/' + viewpoint.image_name.split(".")[0] + ".png"))
-            torchvision.utils.save_image(gt_image, os.path.join(render_path, 'gt/' + viewpoint.image_name.split(".")[0] + ".png"))
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'rgb/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'gt_rgb/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'depth/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'depth_gt/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
+        torchvision.utils.save_image(image, os.path.join(render_path, 'rgb/' + viewpoint.image_name.split(".")[0] + ".png"))
+        torchvision.utils.save_image(gt_image, os.path.join(render_path, 'gt_rgb/' + viewpoint.image_name.split(".")[0] + ".png"))  
+        torchvision.utils.save_image(invDepth, os.path.join(render_path, 'depth/' + viewpoint.image_name.split(".")[0] + ".png"))
+        torchvision.utils.save_image(gt_depth, os.path.join(render_path, 'depth_gt/' + viewpoint.image_name.split(".")[0] + ".png"))
 
-        except:
-            os.makedirs(os.path.dirname(os.path.join(render_path, 'rgb/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
-            os.makedirs(os.path.dirname(os.path.join(render_path, 'gt/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
-            torchvision.utils.save_image(image, os.path.join(render_path, 'rgb/' + viewpoint.image_name.split(".")[0] + ".png"))
-            torchvision.utils.save_image(gt_image, os.path.join(render_path, 'gt/' + viewpoint.image_name.split(".")[0] + ".png"))  
+
         if eval:
             image *= alpha_mask
             gt_image *= alpha_mask
@@ -135,6 +104,9 @@ if __name__ == "__main__":
     parser.add_argument('--out_dir', type=str, default="")
     parser.add_argument("--taus", nargs="+", type=float, default=[0.0, 10.0])
     parser.add_argument("--dataset_type", default='colmap')
+    parser.add_argument("--transforms_json", default=None)
+    parser.add_argument("--pointcloud_file", default=None)
+    parser.add_argument("--is_metric_depth", default=False)
     args = parser.parse_args(sys.argv[1:])
     
     print("Rendering " + args.model_path)
@@ -142,6 +114,7 @@ if __name__ == "__main__":
     dataset, pipe = lp.extract(args), pp.extract(args)
     gaussians = GaussianModel(dataset.sh_degree)
     gaussians.active_sh_degree = dataset.sh_degree
-    scene = Scene(dataset, gaussians, resolution_scales = [1], create_from_hier=True, kargs=args)
-    for tau in args.taus:
-        render_set_hierarchy(args, scene, pipe, os.path.join(args.out_dir, f"render_{tau}"), tau, args.eval)
+    
+    scene  = Scene(dataset, gaussians, load_iteration=-1, create_from_hier=False, kargs=args)
+    render_set_ply(args, scene, pipe, os.path.join(args.out_dir), 0.0, args.eval)
+
