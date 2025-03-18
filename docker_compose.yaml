@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  hierarchical_3d_gaussians:
+    container_name: hierarchical_3d_gaussians
+    ipc: host  # Share the host's IPC namespace
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      args:
+        USERNAME: "${USER:-user}"
+        UID: "${UID:-1007}"
+        GID: "${GID:-1007}"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    runtime: nvidia
+    network_mode: "host"
+    tty: true
+    volumes:
+      - /home/haedamoh/git/hierarchical-3d-gaussians/:/home/docker_dev/hierarchical-3d-gaussians/
+      - /home/haedamoh/.netrc:/home/docker_dev/.netrc
+      - /home/haedamoh/.git:/home/docker_dev/.git
+      - /home/shared/:/home/shared/
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

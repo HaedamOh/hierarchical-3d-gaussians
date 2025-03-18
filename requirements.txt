@@ -8,6 +8,9 @@ opencv-python==4.9.0.80
 gradio_imageslider
 gradio==4.29.0
 matplotlib
+open3d
+evo
+pytransform3d
 submodules/hierarchy-rasterizer
 submodules/simple-knn
 submodules/gaussianhierarchy
