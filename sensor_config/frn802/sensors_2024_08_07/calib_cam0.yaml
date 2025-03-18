@@ -1,0 +1,23 @@
+# Created by Kalibr and DiffCal using 2024-08-07-camchain.yaml
+%YAML 1.2
+---
+image_width: 1920
+image_height: 1080
+camera_name: cam0_sensor_frame
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [1079.6843112710094, 0.0, 918.7542172940892, 0.0, 1080.1494574696203, 540.4760048452534, 0.0, 0.0, 1.0]
+distortion_model: equidistant
+distortion_coefficients:
+  rows: 1
+  cols: 4
+  data: [-0.026023652353976363, -0.022834405112580818, 0.021225804890000335, -0.008019361365412208]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [1079.6843112710094, 0.0, 918.7542172940892, 0.0, 0.0, 1080.1494574696203, 540.4760048452534, 0.0, 0.0, 0.0, 1.0, 0.0]

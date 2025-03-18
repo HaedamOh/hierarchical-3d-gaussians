@@ -1,0 +1,23 @@
+# Created by Kalibr and DiffCal using joined-camchain.yaml
+camera_matrix:
+  cols: 3
+  data: [698.4588137038655, 0.0, 708.6474762128631, 0.0, 699.3937128891818, 533.7390355049014,
+    0.0, 0.0, 1.0]
+  rows: 3
+camera_name: cam2_sensor_frame
+distortion_coefficients:
+  cols: 4
+  data: [-0.042476719963857094, -0.00421520261588724, 0.006942403828737165, -0.0034076218162515594]
+  rows: 1
+distortion_model: equidistant
+image_height: 1080
+image_width: 1440
+projection_matrix:
+  cols: 4
+  data: [698.4588137038655, 0.0, 708.6474762128631, 0.0, 0.0, 699.3937128891818, 533.7390355049014,
+    0.0, 0.0, 0.0, 1.0, 0.0]
+  rows: 3
+rectification_matrix:
+  cols: 3
+  data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  rows: 3

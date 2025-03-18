@@ -1,0 +1,66 @@
+/**:
+  ros__parameters:
+
+    sensors:
+      imu:
+        topic:       "/alphasense_driver_ros/imu"
+
+        rate: 400.
+        timeshift: 0.
+        accelerometer_noise_sigma:            0.001693366453401134
+        accelerometer_bias_random_walk_sigma: 0.0002281876683640465
+        gyroscope_noise_sigma:                0.00036788529273635174
+        gyroscope_bias_random_walk_sigma:     3.982626125401514e-06
+        W_g: [0., 0., -9.808083883386614]
+
+      lidar:
+        # hesai_base and base are co-located. pandar is above base
+        # base:       +x direction forwards. +z up
+        # hesai_base: +x direction leftwards. +z up
+        # pandar:     +x direction backwards. +z up <------- this is for QT64 but not XT32
+        # ros2 run icp_odometry get_tf.py base pandar
+        B_r_BL: [0.000000000, 0.000000000, 0.050400000]
+        B_q_BL: [0.000000000, 0.000000000, 1.000000000, 0.000000000]
+
+        model:  "HESAI_QT64"
+        topic: "/hesai/pandar"
+        rate: 10.
+        raw: false
+        timeshift: 0.
+
+      cam0:
+        # left facing camera
+        # ros2 run icp_odometry get_tf.py cam0_optical_frame_flipped pandar
+        C_r_CL: [-0.000000000, -0.068900000, -0.052530000]
+        C_q_CL: [0.000000000, -0.707106781, 0.707106781, 0.000000000]
+
+        topic: "/alphasense_driver_ros/cam0/color_rect/image"
+        K: [565.698589644635, 0.0, 697.3568979776102, 0.0, 565.1472099669303, 514.9910794779255, 0.0, 0.0, 1.0]
+        image_width: 1440
+        image_height: 1080
+
+      cam1:
+        # forward facing camera
+        # ros2 run icp_odometry get_tf.py cam1_optical_frame_flipped pandar
+        C_r_CL: [0.000000000, -0.068900000, -0.052530000]
+        C_q_CL: [0.500000000, 0.500000000, -0.500000000, 0.500000000]
+
+        topic: "/alphasense_driver_ros/cam1/color_rect/image"
+        K: [565.698589644635, 0.0, 697.3568979776102, 0.0, 565.1472099669303, 514.9910794779255, 0.0, 0.0, 1.0]
+        image_width: 1440
+        image_height: 1080
+
+        # ros2 run icp_odometry get_tf.py cam1_optical_frame_flipped alphasense_imu 
+        C_r_CI: [-0.006000000, -0.003000000, -0.070280000]
+        C_q_CI: [-0.000000000, -0.707106781, 0.707106781, -0.000000000]
+
+      cam2:
+        # right facing camera
+        # ros2 run icp_odometry get_tf.py cam2_optical_frame_flipped pandar
+        C_r_CL: [0.000000000, -0.068900000, -0.052530000]
+        C_q_CL: [0.707106781, 0.000000000, -0.000000000, 0.707106781]
+
+        topic: "/alphasense_driver_ros/cam2/color_rect/image"
+        K: [565.698589644635, 0.0, 697.3568979776102, 0.0, 565.1472099669303, 514.9910794779255, 0.0, 0.0, 1.0]
+        image_width: 1440
+        image_height: 1080

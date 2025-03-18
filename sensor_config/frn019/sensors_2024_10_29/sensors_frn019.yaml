@@ -1,0 +1,88 @@
+# made using the contents of diffcal-calib.yaml
+/**:
+  ros__parameters:
+
+    sensors:
+      imu:
+        topic:       "/alphasense_driver_ros/imu"
+
+        rate: 400.
+        timeshift: 0.
+        accelerometer_noise_sigma:            0.0009432782069138238 
+        accelerometer_bias_random_walk_sigma: 4.981034600256154e-05 
+        gyroscope_noise_sigma:                0.00023031229571253504 
+        gyroscope_bias_random_walk_sigma:     4.46264879417123e-06 
+        W_g: [0., 0., -9.808083883386614]
+
+      lidar:
+        # hesai_base and base are co-located. pandar is above base
+        # base:       +x direction forwards. +z up
+        # hesai_base: +x direction leftwards. +z up
+        # pandar:     +x direction backwards. +z up <------- this is for QT64 but not XT32
+        # ros2 run icp_odometry get_tf.py base pandar
+        B_r_BL: [0.000000000, 0.000000000, 0.050400000]
+        B_q_BL: [0.000000000, 0.000000000, 1.000000000, 0.000000000]
+
+        model:  "HESAI_QT64"
+        topic: "/hesai/pandar"
+        rate: 10.
+        raw: false
+        timeshift: 0.
+
+      cam0: # left
+        C_r_CL: [0.002445973115576358, -0.07369303566179404, -0.057386869899386704]
+        C_q_CL: [-0.002146608381201245, -0.706035772724336, 0.7081636530342621, -0.0036221854144666624]
+
+        image_width: 1440
+        image_height: 1080
+
+        topic: "/needed_for_vilens" # need to move topics inside of config block
+
+        rect: # from raw image pipeline
+          topic: "/alphasense_driver_ros/cam0/color_rect/image"
+          K: [572.1063454237877, 0.0, 721.2136917178718, 0.0, 572.9363629295248, 539.4467936255114, 0.0, 0.0, 1.0]
+          D: [0.0, 0.0, 0.0, 0.0]
+
+        fisheye: # from calib_cam0.yaml
+          topic: "/alphasense_driver_ros/cam0/color/image"
+          K: [698.7077057399946, 0.0, 720.4468046683089, 0.0, 699.7213977428826, 539.6639557186915,0.0, 0.0, 1.0]
+          D: [-0.04010020519601471, -0.00044301230334375594, -7.327926294282181e-05, -0.00017811009939676002]
+
+      cam1: # front
+        C_r_CL: [0.003242860366163889, -0.07368532755947366, -0.05485800045216396]
+        C_q_CL: [0.5023769275907106, 0.49990425097844265, -0.49648618825384844, 0.5012131556048427]
+
+        image_width: 1440
+        image_height: 1080
+
+        rect: # from raw image pipeline
+          topic: "/alphasense_driver_ros/cam1/color_rect/image"
+          K: [568.7253717763142, 0.0, 715.6710624123155, 0.0, 568.7809820287295, 572.6822765860964, 0.0, 0.0, 1.0]
+          D: [0.0, 0.0, 0.0, 0.0]
+
+        fisheye: # from calib_cam1.yaml
+          topic: "/alphasense_driver_ros/cam1/color/image"
+          K: [698.3946772032825, 0.0, 718.431814292891, 0.0, 698.4629665854908, 559.7771701003702,0.0, 0.0, 1.0]
+          D: [-0.04707469981321094, 0.011515146787673071, -0.008908394423298474, 0.0018561099343051583]
+
+        # from 2024 10 29 calibration
+        C_r_CI: [-0.005000230026155717, -0.0031440163748744266, -0.07336562959794378]
+        C_q_CI: [-0.003150684959962717, 0.7095105504964175, -0.7046875827967661, 0.0005124164367280889]
+
+      cam2: # right
+        C_r_CL: [-0.002246894712629628, -0.07344206996606042, -0.05028255821151065]
+        C_q_CL: [0.7066311099992131, -0.0012270682629631486, 0.00012163090437164773, 0.7075810581768573]
+
+        image_width: 1440
+        image_height: 1080
+
+        rect: # from raw image pipeline
+          topic: "/alphasense_driver_ros/cam2/color_rect/image"
+          K: [569.4055290697452, 0.0, 705.4328668331079, 0.0, 568.3496450807268, 527.7287061451452, 0.0, 0.0, 1.0]
+          D: [0.0, 0.0, 0.0, 0.0]
+
+        fisheye: # calib_cam2.yaml
+          topic: "/alphasense_driver_ros/cam2/color/image"
+          K: [698.6954304056306, 0.0, 714.6369903593052, 0.0, 697.3997961335664, 532.530974606606,0.0, 0.0, 1.0]
+          D: [-0.036603475396788196, -0.007341373813717986, 0.005371575306265293, -0.0018297510848552124]
+

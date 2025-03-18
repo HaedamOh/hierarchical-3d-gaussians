@@ -1,0 +1,74 @@
+# These items are specific to this device
+# Note: After modifying please run: `ros2 run runtime_drs generate_procman_files.py`
+
+group "custom.1.vilens" {
+    cmd "vilens" {
+        exec = "/bin/bash -c \"ros2 launch runtime_drs vilens.launch config_file:=$(ros2 pkg prefix --share runtime_drs)/config/default/vilens/vilens.yaml sensors_file:=$(ros2 pkg prefix --share runtime_drs)/config/frn019/sensors_2024_10_29/sensors_frn019.yaml\"";
+        host = "nuc";
+    }
+    cmd "vilens_slam" {
+        exec = "/bin/bash -c \"ros2 launch runtime_drs vilens_slam.launch config_file:=$(ros2 pkg prefix --share runtime_drs)/config/default/vilens_slam/vilens_slam_indoor.yaml\"";
+        host = "nuc";
+    }
+    cmd "lidar_colorization" {
+        exec = "/bin/bash -c \"ros2 launch runtime_drs lidar_color.launch sensors_file:=$(ros2 pkg prefix --share runtime_drs)/config/frn019/sensors_2024_10_29/sensors_frn019.yaml\"";
+        host = "nuc";
+    }
+}
+
+group "custom.2.record_rosbag" {
+    cmd "record_rosbag" {
+        exec = "ros2 run runtime_drs record_rosbag_ros2.py frontier_v7";
+        host = "nuc";
+    }
+}
+
+group "custom.3.snapshot"{
+    cmd "snapshot" {
+        exec = "/bin/bash -c \"ros2 launch runtime_drs snapshot.launch sensors_file:=$(ros2 pkg prefix --share runtime_drs)/config/frn019/sensors_2024_10_29/sensors_frn019.yaml\"";
+        host = "nuc";
+    }
+    cmd "raw_image_pipeline_online" {
+        exec = "/bin/bash -c \"ros2 launch  runtime_drs raw_image_pipeline_alphasense_online.launch device:=frn019 sensors_folder:=sensors_2024_10_29\"";
+        host = "nuc";
+    }
+    cmd "raw_image_pipeline_offline" {
+        exec = "/bin/bash -c \"ros2 launch runtime_drs raw_image_pipeline_alphasense_offline.launch device:=frn019 sensors_folder:=sensors_2024_10_29\"";
+        host = "nuc";
+    }
+}
+
+group "custom.4.gt_generation" {
+    cmd "vilens_gt" {
+        exec = "/bin/bash -c \"ros2 launch runtime_drs vilens.launch config_file:=$(ros2 pkg prefix --share runtime_drs)/config/default/vilens/vilens_gt.yaml sensors_file:=$(ros2 pkg prefix --share runtime_drs)/config/frn019/sensors_2024_10_29/sensors_frn019.yaml\"";
+        host = "nuc";
+    }
+}
+
+script "vilens_and_slam" {
+    start group "base.1.vilens_common";
+    wait ms 2000;
+    start group "custom.1.vilens";
+    start group "base.4.apriltags";
+    start group "base.2.mapping";
+    start cmd "snapshot";
+}
+
+# This runs the sensor drivers in ROS1 using Docker.
+script "online_vilens_and_slam" {
+    start cmd "turn_hesai_power_on";
+    wait ms 5000;
+    start cmd "hesai_qt64_driver";
+    start cmd "docker_alphasense_driver";
+    start cmd "raw_image_pipeline_online";
+    start cmd "ros_bridge";
+    wait ms 2000;
+    run_script "vilens_and_slam";
+}
+
+script "offline_vilens_and_slam" {
+    start cmd "raw_image_pipeline_offline";
+    wait ms 2000;
+    run_script "vilens_and_slam";
+    start group "base.3.visualization";
+}

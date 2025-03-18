@@ -1,0 +1,23 @@
+# Created by Kalibr and DiffCal using kalibr-intrinsics-extrinsics.yaml
+camera_matrix:
+  cols: 3
+  data: [698.3946772032825, 0.0, 718.431814292891, 0.0, 698.4629665854908, 559.7771701003702,
+    0.0, 0.0, 1.0]
+  rows: 3
+camera_name: cam0_sensor_frame
+distortion_coefficients:
+  cols: 4
+  data: [-0.04707469981321094, 0.011515146787673071, -0.008908394423298474, 0.0018561099343051583]
+  rows: 1
+distortion_model: equidistant
+image_height: 1080
+image_width: 1440
+projection_matrix:
+  cols: 4
+  data: [698.3946772032825, 0.0, 718.431814292891, 0.0, 0.0, 698.4629665854908, 559.7771701003702,
+    0.0, 0.0, 0.0, 1.0, 0.0]
+  rows: 3
+rectification_matrix:
+  cols: 3
+  data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  rows: 3
