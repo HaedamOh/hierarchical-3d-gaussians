@@ -68,14 +68,14 @@ def render_set_ply(args, scene, pipe, out_dir, tau, eval):
         alpha_mask = viewpoint.alpha_mask.cuda()
 
 
-        os.makedirs(os.path.dirname(os.path.join(render_path, 'rgb/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
-        os.makedirs(os.path.dirname(os.path.join(render_path, 'gt_rgb/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
-        os.makedirs(os.path.dirname(os.path.join(render_path, 'depth/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
-        os.makedirs(os.path.dirname(os.path.join(render_path, 'depth_gt/' + viewpoint.image_name.split(".")[0] + ".png")), exist_ok=True)
-        torchvision.utils.save_image(image, os.path.join(render_path, 'rgb/' + viewpoint.image_name.split(".")[0] + ".png"))
-        torchvision.utils.save_image(gt_image, os.path.join(render_path, 'gt_rgb/' + viewpoint.image_name.split(".")[0] + ".png"))  
-        torchvision.utils.save_image(invDepth, os.path.join(render_path, 'depth/' + viewpoint.image_name.split(".")[0] + ".png"))
-        torchvision.utils.save_image(gt_depth, os.path.join(render_path, 'depth_gt/' + viewpoint.image_name.split(".")[0] + ".png"))
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'rgb/' + viewpoint.image_name + ".png")), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'gt_rgb/' + viewpoint.image_name + ".png")), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'depth/' + viewpoint.image_name + ".png")), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.join(render_path, 'depth_gt/' + viewpoint.image_name + ".png")), exist_ok=True)
+        torchvision.utils.save_image(image, os.path.join(render_path, 'rgb/' + viewpoint.image_name + ".png"))
+        torchvision.utils.save_image(gt_image, os.path.join(render_path, 'gt_rgb/' + viewpoint.image_name + ".png"))  
+        torchvision.utils.save_image(invDepth, os.path.join(render_path, 'depth/' + viewpoint.image_name + ".png"))
+        torchvision.utils.save_image(gt_depth, os.path.join(render_path, 'depth_gt/' + viewpoint.image_name + ".png"))
 
 
         if eval:
