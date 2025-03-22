@@ -3,39 +3,32 @@
 # Paths and parameters
 # CHUNK_NAME="0_0"  # Replace with the actual chunk name
 PROJECT_PATH="/home/shared/frontier_data/fnt_802/2024-12-13-10-24-rec001/processed/output_colmap"  
-
 SOURCE_PATH="${PROJECT_PATH}/camera_calibration/aligned"
-BOUNDS_FILE="${SOURCE_PATH}"
 
 # Input
 IMAGES_PATH="${PROJECT_PATH}/camera_calibration/rectified/images"
 DEPTHS_PATH="${PROJECT_PATH}/camera_calibration/rectified/depths"
 # ALPHA_MASKS_PATH="${PROJECT_PATH}/camera_calibration/rectified/masks"
+SKYBOX_NUM=100000
 
 # Output
 OUTPUT_PATH="${PROJECT_PATH}/output"
-SCAFFOLD_FILE="${OUTPUT_PATH}/scaffold/point_cloud/iteration_30000"
-MODEL_PATH="${OUTPUT_PATH}/aligned" # Replace with the path to save the model
+MODEL_PATH="${OUTPUT_PATH}/scaffold" # Replace with the path to save the model
 
 # Parameters
-SAVE_ITERATIONS="15_000 30_000 50_000"
-# CHECKPOINT_ITERATIONS="15_000 30_000 50_000" # .chkpt 
-
-# START_CHECKPOINT="$MODEL_PATH/chkpnt10000.pth"
+SAVE_ITERATIONS="30_000"
+POSITION_LR_INIT=0.00016
+POSITION_LR_FINAL=0.0000016
 
 # Run the Python script
-python -u train_single.py \
+python -u train_coarse.py \
     -s "$SOURCE_PATH" \
     --model_path "$MODEL_PATH" \
+    --skybox_num "$SKYBOX_NUM" \
+    --position_lr_init "$POSITION_LR_INIT" \
+    --position_lr_final "$POSITION_LR_FINAL" \
     --images "$IMAGES_PATH" \
-    --depths "$DEPTHS_PATH" \
-    --bounds_file "$BOUNDS_FILE" \
-    --alpha_masks "$ALPHA_MASKS_PATH" \
-    --skybox_locked \
     --save_iterations $SAVE_ITERATIONS \
     --dataset_type "colmap" \
-    --iterations 50000 \
-    --scaffold_file "$SCAFFOLD_FILE" \
 
-    # --start_checkpoint "$START_CHECKPOINT"
 

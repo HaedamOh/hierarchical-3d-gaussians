@@ -11,7 +11,7 @@ POINTCLOUD_FILE="${PROJECT_PATH}/submaps_rect/submap_1/cloud_lidar.pcd"
 
 # Output
 OUTPUT_PATH="${PROJECT_PATH}/output"
-MODEL_PATH="${OUTPUT_PATH}/h-3dgs/submap_1_wo_depth" # Replace with the path to save the model
+MODEL_PATH="${OUTPUT_PATH}/h-3dgs/submap_1" # Replace with the path to save the model
 
 # HIERACHY_PATH="${OUTPUT_PATH}/chunks/merged_hierarchy.hier"
 OUT_DIR="${MODEL_PATH}/render"  
