@@ -38,22 +38,24 @@ if __name__ == '__main__':
             "--encoder", "vitl", "--pred-only", "--grayscale"
         ]
 
-    images_dir = os.path.join(args.project_dir, "camera_calibration/rectified", "images")
+    # images_dir = os.path.join(args.project_dir, "camera_calibration/rectified", "images")
+    images_dir = os.path.join(args.project_dir, "camera_calibration/rectified/images", "images")
     cam_dirs = os.listdir(images_dir)
     if all(os.path.isfile(os.path.join(images_dir, cam_dir)) for cam_dir in cam_dirs):
         cam_dirs = [""]
     for cam_dir in cam_dirs:
-        if os.path.exists(os.path.join(args.project_dir, "camera_calibration/rectified", "depths", cam_dir)):
+        if os.path.exists(os.path.join(args.project_dir, "camera_calibration/rectified/depths", "images", cam_dir)):
             print(f"Depth map for {cam_dir} already exists, skipping.")
             continue
         full_cam_path = os.path.join(images_dir, cam_dir)
         print(f"Estimating depth for {full_cam_path}")
-        full_depth_path = os.path.join(args.project_dir, "camera_calibration/rectified", "depths", cam_dir)
+        full_depth_path = os.path.join(args.project_dir, "camera_calibration/rectified/depths", "images", cam_dir)
         if not os.path.isabs(full_cam_path):
             full_cam_path = os.path.join("../../", full_cam_path)
         if not os.path.isabs(full_depth_path):
             full_depth_path = os.path.join("../../", full_depth_path)
         os.makedirs(full_depth_path, exist_ok=True)
+        
         if args.depth_generator == "DPT":
             generator_args = base_generator_args + [
                 "-i", full_cam_path,
@@ -69,7 +71,7 @@ if __name__ == '__main__':
         except subprocess.CalledProcessError as e:
             print(f"Error executing run_monodepth: {e}")
             sys.exit(1)
-
+    breakpoint()
     # generate depth_params.json for each chunks
     print(f"generating depth_params.json for entire aligned colmap {os.listdir(args.aligned_dir)}.")
     try:
