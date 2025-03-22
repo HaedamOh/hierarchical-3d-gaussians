@@ -106,7 +106,6 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_type", default='colmap')
     parser.add_argument("--transforms_json", default=None)
     parser.add_argument("--pointcloud_file", default=None)
-    parser.add_argument("--is_metric_depth", default=False)
     args = parser.parse_args(sys.argv[1:])
     
     print("Rendering " + args.model_path)

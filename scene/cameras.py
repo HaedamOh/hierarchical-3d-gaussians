@@ -26,7 +26,7 @@ class Camera(nn.Module):
                  invdepthmap,
                  image_name, uid,
                  trans=np.array([0.0, 0.0, 0.0]), scale=1.0, data_device = "cuda",
-                 train_test_exp=False, is_test_dataset=False, is_test_view=False,
+                 train_test_exp=False, is_test_dataset=False, is_test_view=False, 
                  ):
         super(Camera, self).__init__()
 
@@ -70,27 +70,31 @@ class Camera(nn.Module):
         self.invdepthmap = None
         self.depth_reliable = False
         if invdepthmap is not None and depth_params is not None and depth_params["scale"] > 0:
+            
+            valid_mask = invdepthmap > 0
+
             invdepthmapScaled = invdepthmap * depth_params["scale"] + depth_params["offset"]
+            
+            self.invdepthmap = np.full_like(invdepthmap,np.nan)
+            self.invdepthmap[valid_mask] = invdepthmapScaled[valid_mask]
+            
             invdepthmapScaled = cv2.resize(invdepthmapScaled, resolution)
             invdepthmapScaled[invdepthmapScaled < 0] = 0
+            
             if invdepthmapScaled.ndim != 2:
                 invdepthmapScaled = invdepthmapScaled[..., 0]
-            self.invdepthmap = torch.from_numpy(invdepthmapScaled[None]).to(self.data_device)
-
-            if self.alpha_mask is not None:
-                self.depth_mask = self.alpha_mask.clone()
-            else:
-                self.depth_mask = torch.ones_like(self.invdepthmap > 0)
             
-            if depth_params["scale"] < 0.2 * depth_params["med_scale"] or depth_params["scale"] > 5 * depth_params["med_scale"]: 
-                self.depth_mask *= 0
-            else:
-                self.depth_reliable = True
+            self.invdepthmap = torch.from_numpy(invdepthmapScaled).to(self.data_device)
 
-        if invdepthmap is not None:
-            self.invdepthmap = torch.from_numpy(invdepthmap[None]).to(self.data_device)
-            self.depth_mask = torch.ones_like(self.invdepthmap > 0)
-            self.depth_reliable = True 
+            # if self.alpha_mask is not None:
+            #     self.depth_mask = self.alpha_mask.clone()
+            # else:
+            self.depth_mask = torch.from_numpy(valid_mask).to(self.data_device)
+            self.depth_reliable = True
+            # if depth_params["scale"] < 0.2 * depth_params["med_scale"] or depth_params["scale"] > 5 * depth_params["med_scale"]: 
+            #     self.depth_mask *= 0
+            # else:
+            #     self.depth_reliable = True
         
         self.zfar = 100.0 # 100.0
         self.znear = 0.01

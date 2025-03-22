@@ -72,10 +72,10 @@ class Scene:
 
         for resolution_scale in resolution_scales:
             print("Making Training Dataset")
-            self.train_cameras[resolution_scale] = CameraDataset(scene_info.train_cameras, args, resolution_scale, False, kargs.is_metric_depth)
+            self.train_cameras[resolution_scale] = CameraDataset(scene_info.train_cameras, args, resolution_scale, False)
 
             print("Making Test Dataset")
-            self.test_cameras[resolution_scale] = CameraDataset(scene_info.test_cameras, args, resolution_scale, True, kargs.is_metric_depth)
+            self.test_cameras[resolution_scale] = CameraDataset(scene_info.test_cameras, args, resolution_scale, True)
 
         if self.loaded_iter:
             self.gaussians.load_ply(os.path.join(self.model_path,

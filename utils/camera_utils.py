@@ -17,10 +17,10 @@ from PIL import Image
 import os, sys
 import cv2
 import torch
-
+from utils.depth_utils import convert_depth_to_invdepth, convert_invdepth_to_depth, convert_uint16_depth_to_invdepth
 WARNED = False
 
-def loadCam(args, id, cam_info, resolution_scale, is_test_dataset, is_metric_depth):
+def loadCam(args, id, cam_info, resolution_scale, is_test_dataset):
     image = Image.open(cam_info.image_path)
 
     if cam_info.mask_path != "":
@@ -37,36 +37,19 @@ def loadCam(args, id, cam_info, resolution_scale, is_test_dataset, is_metric_dep
             raise
     else:
         alpha_mask = None
-       
+        
     if cam_info.depth_path != "":
-        if not is_metric_depth:
-            try:
-                invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / float(2**16)
-            except FileNotFoundError:
-                print(f"Error: The depth file at path '{cam_info.depth_path}' was not found.")
-                raise
-            except IOError:
-                print(f"Error: Unable to open the image file '{cam_info.depth_path}'. It may be corrupted or an unsupported format.")
-                raise
-            except Exception as e:
-                print(f"An unexpected error occurred when trying to read depth at {cam_info.depth_path}: {e}")
-                raise
-        else:
-            try:
-                euc_depth = cv2.imread(cam_info.depth_path, -1).astype(np.int16) / 256 # 16 bit depth
-                z_depth = euclidean_to_z_depth(euc_depth, cam_info)
-                invdepthmap = np.where(z_depth > 0, 1.0 / z_depth, 0)
-                
-            except FileNotFoundError:
-                print(f"Error: The depth file at path '{cam_info.depth_path}' was not found.")
-                raise
-            except IOError:
-                print(f"Error: Unable to open the image file '{cam_info.depth_path}'. It may be corrupted or an unsupported format.")
-                raise
-            except Exception as e:  
-                print(f"An unexpected error occurred when trying to read depth at {cam_info.depth_path}: {e}")
-                raise
-                
+        try:
+            invdepthmap = cv2.imread(cam_info.depth_path, -1).astype(np.float32) / float(2**16)
+        except FileNotFoundError:
+            print(f"Error: The depth file at path '{cam_info.depth_path}' was not found.")
+            raise
+        except IOError:
+            print(f"Error: Unable to open the image file '{cam_info.depth_path}'. It may be corrupted or an unsupported format.")
+            raise
+        except Exception as e:
+            print(f"An unexpected error occurred when trying to read depth at {cam_info.depth_path}: {e}")
+            raise               
     else:
         invdepthmap = None
 
@@ -192,14 +175,13 @@ def JSON_to_camera(camera_json):
 
 class CameraDataset(torch.utils.data.Dataset):
   'Characterizes a dataset for PyTorch'
-  def __init__(self, list_cam_infos, args, resolution_scales, is_test, is_metric_depth):
+  def __init__(self, list_cam_infos, args, resolution_scales, is_test):
         'Initialization'
         self.resolution_scales = resolution_scales
         self.list_cam_infos = list_cam_infos
         self.args = args
         self.args.data_device = 'cpu'
         self.is_test = is_test
-        self.is_metric_depth = False
 
   def __len__(self):
         'Denotes the total number of samples'
@@ -210,7 +192,7 @@ class CameraDataset(torch.utils.data.Dataset):
 
         # Select sample
         info = self.list_cam_infos[index]
-        X = loadCam(self.args, index, info, self.resolution_scales, self.is_test, self.is_metric_depth)
+        X = loadCam(self.args, index, info, self.resolution_scales, self.is_test)
 
         return X
   
