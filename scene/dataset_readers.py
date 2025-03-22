@@ -309,7 +309,7 @@ def readColmapSceneInfo(path, images, masks, depths, eval, train_test_exp, llffh
 
 
 # SILVR dataset reader #
-def readCamerasFromSILVRTransforms(contents, images, depths ,masks, test_cam_names_list):
+def readCamerasFromSILVRTransforms(contents, images, depths,depths_params, masks, test_cam_names_list):
     """
     Read transforms.json (graphics -> vision)
     """
@@ -332,8 +332,8 @@ def readCamerasFromSILVRTransforms(contents, images, depths ,masks, test_cam_nam
         width,height = frame["w"], frame["h"]
         
         image_path = os.path.join(images, frame["file_path"])
-        image_name = Path(frame["file_path"]).parent.name + "/" + Path(frame["file_path"]).name
-        
+        image_name = Path(frame["file_path"]).parent.name + "/" + Path(frame["file_path"]).stem
+
         primx = cx / width
         primy = cy / height
         FovX = focal2fov(fx, width)
@@ -342,7 +342,14 @@ def readCamerasFromSILVRTransforms(contents, images, depths ,masks, test_cam_nam
         mask_path = os.path.join(masks, frame["mask_file_path"]) if masks != "" else ""
         depth_path = os.path.join(depths, frame["depth_file_path"]) if depths != "" else ""   
 
-        cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, primx=primx, primy=primy, depth_params=None,
+        depth_params = None
+        if depths_params is not None:
+            try:
+                depth_params = depths_params[image_name]
+            except:
+                print("\n", frame["file_path"], "not found in depths_params")
+        
+        cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, primx=primx, primy=primy, depth_params=depth_params,
                             image_path=image_path, mask_path=mask_path, depth_path=depth_path, image_name=image_name, 
                             width=width, height=height, is_test=image_name in test_cam_names_list)
         cam_infos.append(cam_info)
@@ -353,6 +360,28 @@ def readSilvrInfo(path, images, masks, depths, eval, train_test_exp,transforms_j
     print("[Reading SILVR]", transforms_json)
     with open(os.path.join(transforms_json)) as json_file:
         contents = json.load(json_file)
+    
+    depth_params_file = os.path.join(path, "depth_params.json")
+    assert os.path.exists(depth_params_file), "depth_params.json file not found at path '{depth_params_file}'."
+    depths_params = None
+    if depths != "":
+        try:
+            with open(depth_params_file, "r") as f:
+                depths_params = json.load(f)
+            all_scales = np.array([depths_params[key]["scale"] for key in depths_params])
+            if (all_scales > 0).sum():
+                med_scale = np.median(all_scales[all_scales > 0])
+            else:
+                med_scale = 0
+            for key in depths_params:
+                depths_params[key]["med_scale"] = med_scale
+
+        except FileNotFoundError:
+            print(f"Error: depth_params.json file not found at path '{depth_params_file}'.")
+            sys.exit(1)
+        except Exception as e:
+            print(f"An unexpected error occurred when trying to open depth_params.json file: {e}")
+            sys.exit(1)
     
     if pointcloud_file is not None:
         ply_path = pointcloud_file
@@ -404,7 +433,7 @@ def readSilvrInfo(path, images, masks, depths, eval, train_test_exp,transforms_j
         test_cam_names_list = []
 
 
-    cam_infos_unsorted = readCamerasFromSILVRTransforms(contents,images, depths, masks, test_cam_names_list)
+    cam_infos_unsorted = readCamerasFromSILVRTransforms(contents,images, depths, depths_params, masks, test_cam_names_list)
     
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
     train_cam_infos = [c for c in cam_infos if train_test_exp or not c.is_test]
