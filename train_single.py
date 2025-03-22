@@ -16,12 +16,14 @@ from gaussian_renderer import render, network_gui
 import sys
 from scene import Scene, GaussianModel
 from utils.general_utils import safe_state, get_expon_lr_func
+from utils.depth_utils import convert_invdepth_to_depth, visualize_l1_depth_error, convert_depth_to_invdepth, get_overlay
 import uuid
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
 import torchvision
+import cv2
 
 def direct_collate(x):
     return x
@@ -111,11 +113,27 @@ def training(dataset, opt, pipe, saving_iterations, checkpoint_iterations, check
                 photo_loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * Lssim 
                 loss = photo_loss.clone()
                 Ll1depth_pure = 0.0
+
                 if depth_l1_weight(iteration) > 0 and viewpoint_cam.depth_reliable:
                     mono_invdepth = viewpoint_cam.invdepthmap.cuda()
                     depth_mask = viewpoint_cam.depth_mask.cuda()
-                    torchvision.utils.save_image(mono_invdepth, "debug_invdepth.png")
-                    torchvision.utils.save_image(depth_mask, "debug_depth_mask.png")
+
+                    # Save rendered outputs: image, depth, depth error #
+                    if (iteration) % 500 == 0:
+                        torchvision.utils.save_image(mono_invdepth, "debug_gt_invdepth.png")
+                        torchvision.utils.save_image(invDepth, "debug_rendered_invDepth.png")
+                        torchvision.utils.save_image(gt_image, "debug_gt_image.png")
+                        torchvision.utils.save_image(image, "debug_rendered_image.png")
+                        torchvision.utils.save_image(depth_mask.float(), "debug_depth_mask.png")
+                        mono_depth = convert_invdepth_to_depth(mono_invdepth)
+                        depth = convert_invdepth_to_depth(invDepth)
+                        visualize_l1_depth_error(mono_depth, depth, depth_mask, "debug_depth_error_map.png")
+                        
+                        gt_overlay = get_overlay(gt_image, mono_depth, cmap="hsv")
+                        rendered_overlay = get_overlay(gt_image, depth, cmap="hsv")
+                        cv2.imwrite("debug_gt_overlay.png", cv2.cvtColor(gt_overlay, cv2.COLOR_RGB2BGR))
+                        cv2.imwrite("debug_rendered_overlay.png", cv2.cvtColor(rendered_overlay, cv2.COLOR_RGB2BGR))
+                    # print("rendered_depth max", invDepth.max(), "rendered_depth_min", invDepth.min())
                     Ll1depth_pure = torch.abs((invDepth  - mono_invdepth) * depth_mask).mean()
                     Ll1depth = depth_l1_weight(iteration) * Ll1depth_pure 
                     loss += Ll1depth
@@ -232,7 +250,6 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_type", default='colmap')
     parser.add_argument("--transforms_json", default=None)
     parser.add_argument("--pointcloud_file", default=None)
-    parser.add_argument("--is_metric_depth", default=False)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
